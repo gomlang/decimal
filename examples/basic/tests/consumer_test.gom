@@ -1,6 +1,6 @@
 package tests;
 
-use consumer::decimal;
+use ecosystem::decimal::examples::basic as decimal;
 
 #[test]
 fn versioned_decimal_invoice_and_ratio() -> () {

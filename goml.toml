@@ -3,3 +3,6 @@ path = "ecosystem::decimal"
 
 [dependencies]
 "ecosystem::bigint" = "0.1.0"
+
+[dev-dependencies]
+"ecosystem::verification" = "0.1.0"

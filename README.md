@@ -139,11 +139,23 @@ Black-box tests cover seven rounding modes, signed midpoints, carries,
 precision versus fixed-scale semantics, cancellation, recurring and finite
 division, representation-preserving serialization, checked conversions,
 machine-integer and resource boundaries, numeric hash identity, immutable
-aliasing, and concurrent shared arithmetic. The independent consumer computes
-an invoice and recurring ratio through a versioned dependency. Its native GoML tests compare 3,072 frozen independent `decimal` reference vectors across all seven rounding modes, including error-versus-success agreement for quantize and division and agreement on the `Rounded` and `Inexact` flags of every successful result. [Vector provenance](consumer/tests/data/README.md) records the reference and seed. The native ecosystem verifier exercises concurrent arithmetic and detached coefficient bytes under Go’s race detector. Python is not required.
+aliasing, and concurrent shared arithmetic. The example computes
+an invoice and recurring ratio through the public API. Its native GoML tests compare 3,072 frozen independent `decimal` reference vectors across all seven rounding modes, including error-versus-success agreement for quantize and division and agreement on the `Rounded` and `Inexact` flags of every successful result. [Vector provenance](examples/basic/tests/data/README.md) records the reference and seed. The native ecosystem verifier exercises concurrent arithmetic and detached coefficient bytes under Go’s race detector. Python is not required.
 
 Run from this library repository:
 
 ```sh
 (cd ../verification && just ecosystem-test decimal)
 ```
+
+## Development and examples
+
+Requires GoML 0.1.55 or newer. The `examples/basic/` example shares the root manifest; test-only helpers are declared in `[dev-dependencies]`. From the library root, run:
+
+```sh
+goml run --example basic
+goml test
+goml verify --timeout 300s
+```
+
+`goml test` builds the example and runs its tests. `goml verify` repeats the example checks as an independent module against an isolated registry snapshot. `(cd ../verification && just ecosystem-test decimal)` also retains the library-specific smoke and compatibility checks.
