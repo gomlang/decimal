@@ -341,13 +341,20 @@ impl Context {
             coefficient = division(coefficient, BigInt::from_u64(10))?.0;
             scale -= 1;
         }
-        Result::Ok(
-            Outcome {
-                value: Decimal::new(coefficient, scale)?,
-                rounded: inexact || scale < left.scale - right.scale,
-                inexact,
-            },
-        )
+        let rounded = inexact || scale < left.scale - right.scale;
+        if scale > 4096 {
+            let padding = scale - 4096;
+            if padding >= digits(coefficient) {
+                return Result::Err(Error::LimitExceeded("scale"))
+            }
+            let (reduced, remainder) = division(coefficient, power10(padding)?)?;
+            if !remainder.is_zero() {
+                return Result::Err(Error::LimitExceeded("scale"))
+            }
+            coefficient = reduced;
+            scale = 4096;
+        }
+        Result::Ok(Outcome { value: Decimal::new(coefficient, scale)?, rounded, inexact })
     }
 
     pub fn div(self: Context, left: Decimal, right: Decimal) -> Result[Decimal, Error] {

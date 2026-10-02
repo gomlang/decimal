@@ -111,11 +111,14 @@ preserve representation, except that a negative zero sign is never stored.
   most 8192 digits. These bounds remain below bigint's standard 65536-bit
   capacity. Exact operations check their resulting representation, rather
   than automatically dropping trailing zeros to make it fit.
-- Division results must also fit the stored scale. Near a scale boundary,
-  context division's precision padding can exceed that limit even for a
-  numerically representable exact quotient; `div_exact` is appropriate when
-  a finite quotient is required. Exact division normalizes trailing zeros before
-  checking scale and coefficient limits; a quotient below the minimum scale is padded to scale -4096 when
+- Division results must also fit the stored scale. Context division removes
+  only redundant trailing zeros from its rounded coefficient when precision
+  padding would exceed scale 4096. This permits representable exact quotients
+  and rounded carry results at that boundary without changing their values or
+  rounding flags. It still rejects a rounded result requiring nonzero digits
+  beyond the scale range; it does not silently lower precision or underflow to
+  zero. Ordinary in-range division retains precision padding. Exact division
+  normalizes trailing zeros before checking scale and coefficient limits; a quotient below the minimum scale is padded to scale -4096 when
   its coefficient still fits. Thus representable finite quotients at either
   scale boundary succeed. Exact division factors at most 8192 powers
   of either 2 or 5 before returning a resource error.
