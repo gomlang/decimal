@@ -1,0 +1,47 @@
+package tests;
+
+use ecosystem::bigint::{BigInt};
+use ecosystem::decimal::{Decimal};
+use std::testing;
+
+fn boundary_decimal(coefficient: i64, scale: isize) -> Decimal {
+    testing::expect_ok(Decimal::new(BigInt::from_i64(coefficient), scale), "decimal")
+}
+
+#[test]
+fn exact_division_normalizes_before_rejecting_scale_boundaries() -> () {
+    let tiny = boundary_decimal(10, 4096);
+    let quotient = testing::expect_ok(
+        tiny.div_exact(boundary_decimal(1, -1)),
+        "upper scale normalization",
+    );
+    testing::assert(quotient.same_representation(boundary_decimal(1, 4096)));
+    let negative = testing::expect_ok(
+        tiny.neg().div_exact(boundary_decimal(1, -1)),
+        "negative normalization",
+    );
+    testing::assert(negative.same_representation(boundary_decimal(-1, 4096)));
+    let huge = boundary_decimal(1, -4096);
+    let quotient = testing::expect_ok(huge.div_exact(boundary_decimal(1, 1)), "lower scale padding");
+    testing::assert(quotient.same_representation(boundary_decimal(10, -4096)));
+    let quotient = testing::expect_ok(
+        huge.div_exact(boundary_decimal(-2, 1)),
+        "factor cancellation",
+    );
+    testing::assert(quotient.same_representation(boundary_decimal(-5, -4096)));
+}
+
+#[test]
+fn exact_division_still_rejects_unrepresentable_and_recurring_quotients() -> () {
+    testing::assert(boundary_decimal(1, 4096).div_exact(boundary_decimal(10, 0)).is_err());
+    testing::assert(boundary_decimal(1, -4096).div_exact(boundary_decimal(1, 4096)).is_err());
+    testing::assert(boundary_decimal(1, 0).div_exact(boundary_decimal(3, 0)).is_err());
+    testing::assert(boundary_decimal(1, 0).div_exact(Decimal::zero()).is_err());
+    let coefficient = testing::expect_ok(BigInt::pow10(4095), "maximum coefficient");
+    let numerator = testing::expect_ok(Decimal::new(coefficient, 4096), "scaled coefficient");
+    let quotient = testing::expect_ok(
+        numerator.div_exact(boundary_decimal(1, -4095)),
+        "large cancellation",
+    );
+    testing::assert(quotient.same_representation(boundary_decimal(1, 4096)));
+}
