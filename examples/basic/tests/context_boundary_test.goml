@@ -1,0 +1,12 @@
+package tests;
+
+use ecosystem::decimal::{Decimal, Context};
+use std::testing;
+
+#[test]
+fn downstream_context_retains_exact_boundary_values() -> () {
+    let value = testing::expect_ok(Decimal::parse("1e-4096"), "boundary");
+    let result = testing::expect_ok(Context::standard().div_status(value, Decimal::one()), "divide");
+    testing::assert(result.value.same_representation(value));
+    testing::assert(!result.rounded && !result.inexact);
+}

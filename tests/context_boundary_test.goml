@@ -1,0 +1,60 @@
+package tests;
+
+use ecosystem::decimal::{Decimal, Context, Rounding};
+use ecosystem::bigint::{BigInt};
+use std::testing;
+
+#[test]
+fn context_division_removes_only_out_of_range_zero_padding() -> () {
+    let tiny = testing::expect_ok(Decimal::new(BigInt::one(), 4096), "tiny");
+    for precision in[1, 2, 28, 4096] {
+        for mode in[
+            Rounding::HalfEven,
+            Rounding::HalfUp,
+            Rounding::HalfDown,
+            Rounding::Up,
+            Rounding::Down,
+            Rounding::Ceiling,
+            Rounding::Floor,
+        ] {
+            let context = testing::expect_ok(Context::new(precision, mode), "context");
+            for value in[tiny, tiny.neg()] {
+                let result = testing::expect_ok(
+                    context.div_status(value, Decimal::one()),
+                    "exact quotient",
+                );
+                testing::assert(result.value.same_representation(value));
+                testing::assert(!result.inexact && !result.rounded);
+            }
+        }
+    }
+    let ordinary = testing::expect_ok(
+        Context::standard().div(Decimal::one(), Decimal::one()),
+        "ordinary padding",
+    );
+    testing::assert_eq(ordinary.scale(), 27);
+    testing::assert_eq(ordinary.precision(), 28);
+}
+
+#[test]
+fn context_boundary_carry_preserves_inexact_rounding_and_rejects_nonzero_loss() -> () {
+    let context = testing::expect_ok(Context::new(2, Rounding::HalfEven), "context");
+    let numerator = testing::expect_ok(Decimal::new(BigInt::from_i64(999), 4096), "numerator");
+    let result = testing::expect_ok(
+        context.div_status(numerator, Decimal::from_i64(1000)),
+        "rounded carry",
+    );
+    testing::assert_eq(result.value.scale(), 4096);
+    testing::assert_eq(result.value.coefficient(), BigInt::one());
+    testing::assert(result.inexact && result.rounded);
+    let negative = testing::expect_ok(
+        context.div_status(numerator.neg(), Decimal::from_i64(1000)),
+        "negative carry",
+    );
+    testing::assert_eq(negative.value.coefficient(), BigInt::from_i64(-1));
+    testing::assert(negative.inexact && negative.rounded);
+    let tiny = testing::expect_ok(Decimal::new(BigInt::one(), 4096), "tiny");
+    testing::assert(context.div(tiny, Decimal::from_i64(3)).is_err());
+    testing::assert(context.div(tiny, Decimal::from_i64(10)).is_err());
+    testing::assert(context.div(tiny, Decimal::zero()).is_err());
+}
