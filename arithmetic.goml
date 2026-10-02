@@ -83,6 +83,33 @@ fn round_coefficient(coefficient: BigInt, scale: isize, context: Context) -> Res
     Result::Ok(Outcome { value: Decimal::new(coefficient, scale)?, rounded: true, inexact })
 }
 
+fn exact_quotient(coefficient: BigInt, scale: isize) -> Result[Decimal, Error] {
+    let text = coefficient.abs().to_string();
+    let mut end = text.byte_len();
+    let mut scale = scale;
+    while end > 1 && text.byte_get(end - 1) == b'0' && scale > -4096 {
+        end -= 1;
+        scale -= 1;
+    }
+    let magnitude = BigInt::parse(text.byte_slice(0, end)).map_err(
+        |error| Error::Integer(error.to_string()),
+    )?;
+    let mut coefficient = if coefficient.is_negative() {
+        magnitude.neg()
+    } else {
+        magnitude
+    };
+    if scale < -4096 {
+        let padding = -4096 - scale;
+        if end + padding > 4096 {
+            return Result::Err(Error::Overflow)
+        }
+        coefficient = coefficient.mul(power10(padding)?);
+        scale = -4096;
+    }
+    Decimal::new(coefficient, scale)
+}
+
 impl Decimal {
     pub fn add(self: Decimal, other: Decimal) -> Result[Decimal, Error] {
         let (left, right, scale) = align(self, other)?;
@@ -198,14 +225,13 @@ impl Decimal {
             fives
         };
         let scale = self.scale - other.scale + places;
-        check_scale(scale)?;
         let twos = two.pow((places - twos).to_u64()).map_err(
             |error| Error::Integer(error.to_string()),
         )?;
         let fives = five.pow((places - fives).to_u64()).map_err(
             |error| Error::Integer(error.to_string()),
         )?;
-        Result::Ok(Decimal::new(numerator.mul(twos).mul(fives), scale)?.normalize())
+        exact_quotient(numerator.mul(twos).mul(fives), scale)
     }
 
     pub fn to_i64(self: Decimal) -> Result[i64, Error] {
