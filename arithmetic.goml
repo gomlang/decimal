@@ -234,6 +234,34 @@ impl Decimal {
         exact_quotient(numerator.mul(twos).mul(fives), scale)
     }
 
+    pub fn div_rem(self: Decimal, other: Decimal) -> Result[(Decimal, Decimal), Error] {
+        if other.is_zero() {
+            return Result::Err(Error::DivisionByZero)
+        }
+        let (left, right, scale) = align(self, other)?;
+        let (quotient, remainder) = division(left, right)?;
+        let quotient = exact_quotient(quotient, 0)?;
+        let remainder = if remainder.is_zero() {
+            Decimal::zero()
+        } else {
+            exact_quotient(remainder, scale)?
+        };
+        Result::Ok((quotient, remainder))
+    }
+
+    pub fn rem(self: Decimal, other: Decimal) -> Result[Decimal, Error] {
+        if other.is_zero() {
+            return Result::Err(Error::DivisionByZero)
+        }
+        let (left, right, scale) = align(self, other)?;
+        let (_, remainder) = division(left, right)?;
+        if remainder.is_zero() {
+            Result::Ok(Decimal::zero())
+        } else {
+            exact_quotient(remainder, scale)
+        }
+    }
+
     pub fn to_i64(self: Decimal) -> Result[i64, Error] {
         self.rescale_exact(0)?.coefficient.to_i64().ok_or(Error::Overflow)
     }

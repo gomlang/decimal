@@ -1,0 +1,86 @@
+package tests;
+
+use ecosystem::decimal::{Decimal, Error};
+use ecosystem::bigint::{BigInt};
+use std::testing;
+
+#[test]
+fn quotient_remainder_truncates_signs_and_normalizes_results() -> () {
+    for numerator in["12.00", "-12.00"] {
+        for denominator in["0.700", "-0.700"] {
+            let a = d(numerator);
+            let b = d(denominator);
+            let (q, r) = testing::expect_ok(a.div_rem(b), "quotient remainder");
+            testing::assert(
+                q
+                    == d(
+                        if a.is_negative() != b.is_negative() {
+                            "-17"
+                        } else {
+                            "17"
+                        },
+                    ),
+            );
+            testing::assert(
+                r.same_representation(
+                    d(
+                        if a.is_negative() {
+                            "-0.1"
+                        } else {
+                            "0.1"
+                        },
+                    ),
+                ),
+            );
+            testing::assert(
+                testing::expect_ok(testing::expect_ok(q.mul(b), "product").add(r), "identity") == a,
+            );
+            testing::assert(testing::expect_ok(a.rem(b), "remainder") == r);
+        }
+    }
+    let (q, r) = testing::expect_ok(d("100.00").div_rem(d(".010")), "trailing zeros");
+    testing::assert(q.same_representation(d("1e4")));
+    testing::assert(r.same_representation(Decimal::zero()));
+    let (q, r) = testing::expect_ok(d("-0.1200").div_rem(d("7")), "small dividend");
+    testing::assert(q.same_representation(Decimal::zero()));
+    testing::assert(r.same_representation(d("-.12")));
+    for a in[Decimal::zero(), d("1")] {
+        testing::assert_eq(
+            testing::expect_err(a.div_rem(d("0.00")), "zero divisor"),
+            Error::DivisionByZero,
+        );
+        testing::assert_eq(
+            testing::expect_err(a.rem(d("0.00")), "zero divisor"),
+            Error::DivisionByZero,
+        );
+    }
+}
+
+#[test]
+fn quotient_remainder_checks_final_representation_and_extreme_alignment() -> () {
+    let huge = d("1e4096");
+    let small = d(".1");
+    let (q, r) = testing::expect_ok(huge.div_rem(small), "quotient scale boundary");
+    testing::assert_eq(q.scale(), -4096);
+    testing::assert_eq(q.coefficient(), BigInt::from_i64(10));
+    testing::assert(r.is_zero());
+    let tiny = d("1e-4096");
+    let (q, r) = testing::expect_ok(tiny.neg().div_rem(huge), "extreme alignment");
+    testing::assert(q.is_zero());
+    testing::assert(r.same_representation(tiny.neg()));
+    testing::assert_eq(
+        testing::expect_err(huge.div_rem(tiny), "oversized quotient"),
+        Error::Overflow,
+    );
+    testing::assert(
+        testing::expect_ok(huge.rem(tiny), "remainder despite quotient overflow").is_zero(),
+    );
+    let coefficient = testing::expect_ok(BigInt::pow10(4095), "coefficient boundary");
+    let almost = testing::expect_ok(
+        Decimal::new(coefficient.sub(BigInt::one()), 4096),
+        "tiny maximum",
+    );
+    let (q, r) = testing::expect_ok(almost.div_rem(tiny), "4095 digit quotient");
+    testing::assert_eq(q.coefficient(), coefficient.sub(BigInt::one()));
+    testing::assert(r.is_zero());
+}

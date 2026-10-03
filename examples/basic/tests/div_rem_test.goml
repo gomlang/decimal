@@ -1,0 +1,32 @@
+package tests;
+
+use ecosystem::decimal::{Decimal};
+use std::fs;
+use std::testing;
+
+#[test]
+fn downstream_quotient_remainder_matches_independent_exact_integer_vectors() -> () {
+    let path = if fs::is_dir("examples/basic") {
+        "examples/basic/tests/data/div_rem.tsv"
+    } else {
+        "tests/data/div_rem.tsv"
+    };
+    let input = testing::expect_ok(fs::read_file_structured(path), "read quotient remainder reference");
+    let mut count = 0;
+    for line in input.split("\n") {
+        if line == "" {
+            continue
+        }
+        let cells = line.split("\t");
+        let a = testing::expect_ok(Decimal::parse(cells[0]), "dividend");
+        let b = testing::expect_ok(Decimal::parse(cells[1]), "divisor");
+        let q = testing::expect_ok(Decimal::parse(cells[2]), "reference quotient");
+        let r = testing::expect_ok(Decimal::parse(cells[3]), "reference remainder");
+        let actual = testing::expect_ok(a.div_rem(b), "div_rem");
+        testing::assert_eq(actual.0.to_scientific(), q.to_scientific());
+        testing::assert_eq(actual.1.to_scientific(), r.to_scientific());
+        testing::assert(testing::expect_ok(a.rem(b), "rem").same_representation(r));
+        count += 1;
+    }
+    testing::assert_eq(count, 192);
+}

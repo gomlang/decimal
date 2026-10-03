@@ -42,6 +42,7 @@ The first result is `139.96`; the second is exactly the stored decimal
 | `parse`, `new`, `from_i64`, `from_u64` | Exact construction; parsing accepts optional sign, decimal point, and signed `e`/`E` exponent. |
 | `coefficient`, `scale`, `precision`, `adjusted_exponent` | Representation inspection; zero has one coefficient digit. |
 | `add`, `sub`, `mul` | Exact arithmetic, returning a recoverable error if the result representation exceeds the limits. Addition uses the larger input scale; multiplication adds scales. |
+| `div_rem`, `rem` | Exact integer quotient toward zero and signed remainder; normalized results. `rem` also succeeds when the quotient cannot fit. |
 | `div_exact` | Reduce common factors, then factor the denominator into powers of 2 and 5. Reject nonterminating quotients. Results normalize trailing zeros. |
 | `rescale`, `rescale_exact`, `rescale_status` | Round to a decimal scale, reject any loss of nonzero digits, or return explicit rounding information. |
 | `normalize` | Remove coefficient trailing zeros down to the minimum supported scale; normalize all zeros to scale zero. |
@@ -51,6 +52,18 @@ The first result is `139.96`; the second is exactly the stored decimal
 | `cmp`, `Eq`, `Ord`, `Hash` | Numeric semantics independent of scale, suitable for sorted collections and hash keys. |
 | `same_quantum`, `same_representation` | Compare scales only, or compare coefficient and scale together. |
 | `to_fixed`, `to_string`, `to_scientific`, `format_scale` | Fixed output, exact scientific output, or rounded fixed-scale output. |
+
+`a.div_rem(b)` returns `(q, r)` with `a = q*b + r`, integer `q` truncated
+toward zero, and `abs(r) < abs(b)`. A nonzero remainder has the dividend's sign,
+regardless of the divisor's sign: `-12.00 / 0.700` yields `(-17, -0.1)`.
+Both results remove trailing coefficient zeros down to scale -4096; zero results
+have scale zero. An integral quotient may therefore have a negative scale.
+The input quantum is not retained. Division by zero returns `DivisionByZero`,
+and a quotient that cannot fit the stored coefficient/scale bounds returns
+`Overflow`. Intermediate aligned coefficients use the existing bounded bigint
+arithmetic. `a.rem(b)` checks only the remainder representation and can succeed
+when `div_rem` reports quotient overflow (for example `1e4096 % 1e-4096 = 0`).
+Neither operation uses a context or rounds fractional digits of the remainder.
 
 `Context::new(precision, rounding)` applies a significant-digit precision;
 `Context::standard()` uses 28 digits and half-even rounding. Context provides
@@ -109,8 +122,9 @@ preserve representation, except that a negative zero sign is never stored.
 - Powers of ten are limited to exponent 12288; arithmetic's largest aligned
   coefficient is at most 12289 digits. Multiplication intermediates have at
   most 8192 digits. These bounds remain below bigint's standard 65536-bit
-  capacity. Exact operations check their resulting representation, rather
-  than automatically dropping trailing zeros to make it fit.
+  capacity. Addition and multiplication check their resulting representation. Division
+  and remainder normalize redundant trailing zeros before checking the final
+  coefficient limit.
 - Division results must also fit the stored scale. Context division removes
   only redundant trailing zeros from its rounded coefficient when precision
   padding would exceed scale 4096. This permits representable exact quotients
