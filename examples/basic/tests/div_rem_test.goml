@@ -11,7 +11,10 @@ fn downstream_quotient_remainder_matches_independent_exact_integer_vectors() -> 
     } else {
         "tests/data/div_rem.tsv"
     };
-    let input = testing::expect_ok(fs::read_file_structured(path), "read quotient remainder reference");
+    let input = testing::expect_ok(
+        fs::read_file_structured(path),
+        "read quotient remainder reference",
+    );
     let mut count = 0;
     for line in input.split("\n") {
         if line == "" {
