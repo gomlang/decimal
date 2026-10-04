@@ -196,15 +196,12 @@ impl Decimal {
         }
         let two = BigInt::from_u64(2);
         let five = BigInt::from_u64(5);
-        let mut twos = 0;
-        let mut fives = 0;
-        while !denominator.is_odd() {
-            denominator = division(denominator, two)?.0;
-            twos += 1;
-            if twos > 8192 {
-                return Result::Err(Error::LimitExceeded("exact division factors"))
-            }
+        let twos = denominator.abs().trailing_zeros().unwrap_or(0);
+        if twos > 8192 {
+            return Result::Err(Error::LimitExceeded("exact division factors"))
         }
+        denominator = denominator.shr(twos).map_err(|error| Error::Integer(error.to_string()))?;
+        let mut fives = 0;
         loop {
             let (quotient, remainder) = division(denominator, five)?;
             if !remainder.is_zero() {

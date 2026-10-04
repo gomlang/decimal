@@ -159,7 +159,8 @@ bounded power of ten; comparisons inspect exponents and padded decimal digit
 strings without constructing a giant aligned bigint. Normalization scans
 trailing digits once, then reparses the remaining coefficient. Conversion
 between limbs and decimal text and integer parsing have quadratic worst-case
-cost. Exact division uses a gcd plus bounded repeated factor removal.
+cost. Exact division uses a gcd, removes binary factors with a trailing-zero
+count and one shift, then performs bounded repeated division for factors of five.
 
 Black-box tests cover seven rounding modes, signed midpoints, carries,
 precision versus fixed-scale semantics, cancellation, recurring and finite
