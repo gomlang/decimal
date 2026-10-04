@@ -271,7 +271,18 @@ impl Decimal {
     }
 
     pub fn to_bigint(self: Decimal) -> Result[BigInt, Error] {
-        Result::Ok(self.rescale_exact(0)?.coefficient)
+        if self.is_zero() || self.scale == 0 {
+            return Result::Ok(self.coefficient)
+        }
+        if self.scale < 0 {
+            return Result::Ok(self.coefficient.mul(power10(-self.scale)?))
+        }
+        let (quotient, remainder) = division(self.coefficient, power10(self.scale)?)?;
+        if remainder.is_zero() {
+            Result::Ok(quotient)
+        } else {
+            Result::Err(Error::Inexact)
+        }
     }
 
     pub fn trunc(self: Decimal) -> Result[Decimal, Error] {

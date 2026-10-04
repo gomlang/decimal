@@ -53,6 +53,12 @@ The first result is `139.96`; the second is exactly the stored decimal
 | `same_quantum`, `same_representation` | Compare scales only, or compare coefficient and scale together. |
 | `to_fixed`, `to_string`, `to_scientific`, `format_scale` | Fixed output, exact scientific output, or rounded fixed-scale output. |
 
+`to_bigint` converts the full integral value directly, including the digits
+implied by a negative scale. For example, `1e4096` becomes a 4097-digit integer;
+the largest supported Decimal can yield an 8192-digit BigInt. Fractional values
+still return `Inexact`, and fixed-width integer conversions retain their range
+checks.
+
 `a.div_rem(b)` returns `(q, r)` with `a = q*b + r`, integer `q` truncated
 toward zero, and `abs(r) < abs(b)`. A nonzero remainder has the dividend's sign,
 regardless of the divisor's sign: `-12.00 / 0.700` yields `(-17, -0.1)`.

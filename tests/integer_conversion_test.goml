@@ -1,0 +1,67 @@
+package tests;
+
+use ecosystem::bigint::{BigInt};
+use ecosystem::decimal::{Decimal, Error};
+use std::testing;
+
+#[test]
+fn bigint_conversion_accepts_integer_digits_from_negative_scale() -> () {
+    let mut zeros = "";
+    for _ in 0..4096 {
+        zeros += "0";
+    }
+    let value = testing::expect_ok(Decimal::parse("1e4096"), "large integral decimal");
+    testing::assert_eq(
+        testing::expect_ok(value.to_bigint(), "positive integer").to_string(),
+        "1" + zeros,
+    );
+    testing::assert_eq(
+        testing::expect_ok(value.neg().to_bigint(), "negative integer").to_string(),
+        "-1" + zeros,
+    );
+    testing::assert_eq(
+        testing::expect_err(value.rescale_exact(0), "decimal coefficient still bounded"),
+        Error::Overflow,
+    );
+    testing::assert_eq(testing::expect_err(value.to_i64(), "signed machine limit"), Error::Overflow);
+    testing::assert_eq(
+        testing::expect_err(value.to_u64(), "unsigned machine limit"),
+        Error::Overflow,
+    );
+}
+
+#[test]
+fn bigint_conversion_handles_maximum_decimal_magnitude_and_exactness() -> () {
+    let mut nines = "";
+    let mut zeros = "";
+    for _ in 0..4096 {
+        nines += "9";
+        zeros += "0";
+    }
+    let coefficient = testing::expect_ok(BigInt::parse(nines), "maximum coefficient");
+    let value = testing::expect_ok(Decimal::new(coefficient, -4096), "maximum decimal magnitude");
+    testing::assert_eq(
+        testing::expect_ok(value.to_bigint(), "8192 digit integer").to_string(),
+        nines + zeros,
+    );
+    testing::assert_eq(
+        testing::expect_ok(value.neg().to_bigint(), "negative maximum magnitude").to_string(),
+        "-" + nines + zeros,
+    );
+    let zero = testing::expect_ok(Decimal::new(BigInt::zero(), -4096), "scaled zero");
+    testing::assert(testing::expect_ok(zero.to_bigint(), "zero integer").is_zero());
+    let integer = testing::expect_ok(Decimal::parse("-1200e-2"), "scaled exact integer");
+    testing::assert_eq(
+        testing::expect_ok(integer.to_bigint(), "exact fraction reduction").to_string(),
+        "-12",
+    );
+    let fraction = testing::expect_ok(Decimal::parse("1e-4096"), "small fraction");
+    testing::assert_eq(
+        testing::expect_err(fraction.to_bigint(), "inexact fraction"),
+        Error::Inexact,
+    );
+    testing::assert_eq(
+        testing::expect_err(fraction.neg().to_bigint(), "negative inexact fraction"),
+        Error::Inexact,
+    );
+}
