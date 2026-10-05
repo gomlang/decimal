@@ -16,16 +16,19 @@ fn increment(
     if remainder.is_zero() {
         return false
     }
-    let half = remainder.abs().mul(BigInt::from_u64(2).abs()).cmp(denominator.abs());
     match rounding {
         Rounding::Down => false,
         Rounding::Up => true,
         Rounding::Ceiling => !negative,
         Rounding::Floor => negative,
-        Rounding::HalfUp => half != Ordering::Less,
-        Rounding::HalfDown => half == Ordering::Greater,
-        Rounding::HalfEven => half == Ordering::Greater
-            || (half == Ordering::Equal && quotient.is_odd()),
+        Rounding::HalfUp | Rounding::HalfDown | Rounding::HalfEven => {
+            let half = remainder.abs().mul(BigInt::from_u64(2).abs()).cmp(denominator.abs());
+            match rounding {
+                Rounding::HalfUp => half != Ordering::Less,
+                Rounding::HalfDown => half == Ordering::Greater,
+                _ => half == Ordering::Greater || (half == Ordering::Equal && quotient.is_odd()),
+            }
+        },
     }
 }
 
