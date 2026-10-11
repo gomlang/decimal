@@ -5,4 +5,4 @@ path = "ecosystem::decimal"
 "ecosystem::bigint" = true
 
 [dev-dependencies]
-"ecosystem::verification" = true
+"ecosystem::testkit" = true
