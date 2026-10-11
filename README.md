@@ -1,7 +1,7 @@
 # decimal
 
 An immutable, finite, base-10 decimal library implemented in GoML, using the
-versioned `ecosystem::bigint = "0.1.0"` dependency for integer arithmetic. There
+`ecosystem::bigint = true` dependency for integer arithmetic. There
 is no floating-point intermediate or Go decimal adapter.
 
 `Decimal` stores a signed `BigInt` coefficient and an `isize` scale:
@@ -14,7 +14,7 @@ scale `4`.
 
 ```toml
 [dependencies]
-"ecosystem::decimal" = "0.1.0"
+"ecosystem::decimal" = true
 ```
 
 ```gom
@@ -177,12 +177,12 @@ Run from this library repository:
 
 ## Development and examples
 
-Requires GoML 0.1.56 or newer. The `examples/basic/` example shares the root manifest; test-only helpers are declared in `[dev-dependencies]`. From the library root, run:
+Requires the [current GoML toolchain](https://github.com/gomlang/verification/blob/main/ci/toolchain.json) with unversioned registry support. The `examples/basic/` example shares the root manifest; test-only helpers are declared in `[dev-dependencies]`. From the library root, run:
 
 ```sh
 goml run --example basic
 goml test
-goml verify --timeout 300s
+(cd ../verification && just ecosystem-test decimal)
 ```
 
-`goml test` builds the example and runs its tests. `goml verify` repeats the example checks as an independent module against an isolated registry snapshot. `(cd ../verification && just ecosystem-test decimal)` also retains the library-specific smoke and compatibility checks.
+`goml test` builds the example and runs its tests. `(cd ../verification && just ecosystem-test decimal)` runs the library-specific smoke and compatibility checks.
