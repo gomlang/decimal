@@ -1,0 +1,28 @@
+package tests;
+
+use ecosystem::decimal::{Error};
+use std::testing;
+
+#[test]
+fn error_display_preserves_public_messages() -> () {
+    for (error, expected) in[
+        (Error::InvalidSyntax(0), "invalid decimal syntax at byte 0"),
+        (Error::InvalidSyntax(-1), "invalid decimal syntax at byte -1"),
+        (
+            Error::InvalidSyntax(9223372036854775807),
+            "invalid decimal syntax at byte 9223372036854775807",
+        ),
+        (Error::LimitExceeded(""), "decimal limit exceeded: "),
+        (Error::LimitExceeded("范围 {0}\n雪"), "decimal limit exceeded: 范围 {0}\n雪"),
+        (Error::InvalidPrecision, "decimal precision must be between 1 and 4096"),
+        (Error::DivisionByZero, "decimal division by zero"),
+        (Error::NonTerminating, "decimal quotient has no finite representation"),
+        (Error::Inexact, "decimal conversion would discard nonzero digits"),
+        (Error::Overflow, "decimal coefficient or conversion overflow"),
+        (Error::InvalidEncoding, "invalid decimal encoding"),
+        (Error::Integer(""), "decimal integer operation: "),
+        (Error::Integer("范围 {0}\n雪"), "decimal integer operation: 范围 {0}\n雪"),
+    ] {
+        testing::assert_eq(error.to_string(), expected);
+    }
+}

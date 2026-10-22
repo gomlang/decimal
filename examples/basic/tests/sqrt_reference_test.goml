@@ -1,0 +1,45 @@
+package tests;
+
+use ecosystem::decimal::{Context, Decimal, Rounding};
+use std::testing;
+use std::fs;
+
+#[test]
+fn square_root_independent_decimal_vectors() -> () {
+    let path = if fs::is_dir("examples/basic") {
+        "examples/basic/tests/data/sqrt.tsv"
+    } else {
+        "tests/data/sqrt.tsv"
+    };
+    let input = testing::expect_ok(fs::read_file_structured(path), "sqrt vectors");
+    let mut count = 0;
+    for line in input.split("\n") {
+        if line == "" {
+            continue
+        }
+        let cells = line.split("\t");
+        let precision = match cells[1] {
+            "1" => 1,
+            "2" => 2,
+            "9" => 9,
+            _ => 28,
+        };
+        let mode = match cells[2] {
+            "HalfEven" => Rounding::HalfEven,
+            "HalfUp" => Rounding::HalfUp,
+            "HalfDown" => Rounding::HalfDown,
+            "Up" => Rounding::Up,
+            "Down" => Rounding::Down,
+            "Ceiling" => Rounding::Ceiling,
+            _ => Rounding::Floor,
+        };
+        let context = testing::expect_ok(Context::new(precision, mode), "context");
+        let value = testing::expect_ok(Decimal::parse(cells[0]), "input");
+        let result = testing::expect_ok(context.sqrt_status(value), "sqrt vector");
+        testing::assert_eq(result.value, testing::expect_ok(Decimal::parse(cells[3]), "expected"));
+        testing::assert_eq(result.inexact, cells[4] == "true");
+        testing::assert_eq(result.rounded, cells[5] == "true");
+        count += 1;
+    }
+    testing::assert_eq(count, 1288);
+}

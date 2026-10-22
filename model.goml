@@ -2,33 +2,28 @@ package decimal;
 
 use ecosystem::bigint::{BigInt};
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, ToString)]
 pub enum Error {
+    #[to_string("invalid decimal syntax at byte {0}")]
     InvalidSyntax(isize),
+    #[to_string("decimal limit exceeded: {0}")]
     LimitExceeded(string),
+    #[to_string("decimal precision must be between 1 and 4096")]
     InvalidPrecision,
+    #[to_string("decimal division by zero")]
     DivisionByZero,
+    #[to_string("decimal square root of a negative value")]
+    NegativeSquareRoot,
+    #[to_string("decimal quotient has no finite representation")]
     NonTerminating,
+    #[to_string("decimal conversion would discard nonzero digits")]
     Inexact,
+    #[to_string("decimal coefficient or conversion overflow")]
     Overflow,
+    #[to_string("invalid decimal encoding")]
     InvalidEncoding,
+    #[to_string("decimal integer operation: {0}")]
     Integer(string),
-}
-
-impl ToString for Error {
-    fn to_string(self: Error) -> string {
-        match self {
-            InvalidSyntax(index) => "invalid decimal syntax at byte " + index.to_string(),
-            LimitExceeded(resource) => "decimal limit exceeded: " + resource,
-            InvalidPrecision => "decimal precision must be between 1 and 4096",
-            DivisionByZero => "decimal division by zero",
-            NonTerminating => "decimal quotient has no finite representation",
-            Inexact => "decimal conversion would discard nonzero digits",
-            Overflow => "decimal coefficient or conversion overflow",
-            InvalidEncoding => "invalid decimal encoding",
-            Integer(message) => "decimal integer operation: " + message,
-        }
-    }
 }
 
 #[derive(PartialEq, Eq, Debug)]

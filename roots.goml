@@ -1,0 +1,97 @@
+package decimal;
+
+use ecosystem::bigint::{BigInt};
+
+impl Context {
+    pub fn sqrt_status(self: Context, value: Decimal) -> Result[Outcome, Error] {
+        if value.is_negative() {
+            return Result::Err(Error::NegativeSquareRoot)
+        }
+        let preferred = if value.scale > 0 {
+            (value.scale + 1) / 2
+        } else {
+            value.scale / 2
+        };
+        if value.is_zero() {
+            return Result::Ok(
+                Outcome {
+                    value: Decimal::new(BigInt::zero(), preferred)?,
+                    rounded: false,
+                    inexact: false,
+                },
+            )
+        }
+        let adjusted = value.adjusted_exponent();
+        let exponent = if adjusted < 0 {
+            (adjusted - 1) / 2
+        } else {
+            adjusted / 2
+        };
+        let mut scale = self.precision - 1 - exponent;
+        let shift = 2 * scale - value.scale;
+        let numerator = if shift >= 0 {
+            value.coefficient.mul(power10(shift)?)
+        } else {
+            value.coefficient
+        };
+        let denominator = if shift < 0 {
+            power10(-shift)?
+        } else {
+            BigInt::one()
+        };
+        let integral = division(numerator, denominator)?.0;
+        let root = integral.abs().sqrt().map_err(|error| Error::Integer(error.to_string()))?;
+        let mut coefficient = BigInt::from_sign_magnitude(false, root);
+        let inexact = numerator != coefficient.mul(coefficient).mul(denominator);
+        if inexact {
+            let midpoint = coefficient.mul(BigInt::from_u64(2)).add(BigInt::one());
+            let half = numerator.mul(BigInt::from_u64(4)).cmp(
+                midpoint.mul(midpoint).mul(denominator),
+            );
+            let up = match self.rounding {
+                Rounding::Down => false,
+                Rounding::Floor => false,
+                Rounding::Up => true,
+                Rounding::Ceiling => true,
+                Rounding::HalfUp => half != Ordering::Less,
+                Rounding::HalfDown => half == Ordering::Greater,
+                Rounding::HalfEven => half == Ordering::Greater
+                    || (half == Ordering::Equal && coefficient.is_odd()),
+            };
+            if up {
+                coefficient = coefficient.add(BigInt::one());
+            }
+        }
+        if digits(coefficient) > self.precision {
+            coefficient = division(coefficient, BigInt::from_u64(10))?.0;
+            scale -= 1;
+        }
+        let rounded = inexact || scale < preferred;
+        if !inexact {
+            let text = coefficient.to_string();
+            let mut end = text.byte_len();
+            while scale > preferred && end > 1 && text.byte_get(end - 1) == b'0' {
+                end -= 1;
+                scale -= 1;
+            }
+            if end < text.byte_len() {
+                coefficient = BigInt::parse(text.byte_slice(0, end)).map_err(
+                    |error| Error::Integer(error.to_string()),
+                )?;
+            }
+        }
+        if scale > 4096 {
+            let (reduced, remainder) = division(coefficient, power10(scale - 4096)?)?;
+            if !remainder.is_zero() {
+                return Result::Err(Error::LimitExceeded("scale"))
+            }
+            coefficient = reduced;
+            scale = 4096;
+        }
+        Result::Ok(Outcome { value: Decimal::new(coefficient, scale)?, rounded, inexact })
+    }
+
+    pub fn sqrt(self: Context, value: Decimal) -> Result[Decimal, Error] {
+        Result::Ok(self.sqrt_status(value)?.value)
+    }
+}

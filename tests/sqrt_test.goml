@@ -1,0 +1,92 @@
+package tests;
+
+use ecosystem::decimal::{Context, Decimal, Rounding, Error};
+use ecosystem::bigint::{BigInt};
+use std::testing;
+
+#[test]
+fn square_root_preferred_scale_and_status() -> () {
+    for (input, output, rounded) in[
+        ("4.00", "2.0", false),
+        ("4.000", "2.00", false),
+        ("0e3", "0e1", false),
+        ("0e-3", "0.00", false),
+        ("1.0000", "1.00", false),
+        ("10000", "100", false),
+    ] {
+        let result = testing::expect_ok(
+            Context::standard().sqrt_status(
+                testing::expect_ok(Decimal::parse(input), "sqrt boundary"),
+            ),
+            "sqrt boundary",
+        );
+        testing::assert(
+            result.value.same_representation(
+                testing::expect_ok(Decimal::parse(output), "sqrt boundary"),
+            ),
+        );
+        testing::assert_eq(result.rounded, rounded);
+        testing::assert(!result.inexact);
+    }
+    let result = testing::expect_ok(
+        testing::expect_ok(Context::new(1, Rounding::HalfEven), "sqrt boundary").sqrt_status(
+            testing::expect_ok(Decimal::parse("1.0000"), "sqrt boundary"),
+        ),
+        "sqrt boundary",
+    );
+    testing::assert(result.rounded && !result.inexact);
+    testing::assert_eq(
+        testing::expect_err(Context::standard().sqrt(Decimal::from_i64(-1)), "sqrt boundary"),
+        Error::NegativeSquareRoot,
+    );
+    testing::assert(
+        testing::expect_ok(
+            Context::standard().sqrt(testing::expect_ok(Decimal::parse("0.0000"), "sqrt boundary")),
+            "sqrt boundary",
+        ).same_representation(testing::expect_ok(Decimal::parse("0.00"), "zero quantum")),
+    );
+}
+
+#[test]
+fn square_root_precision_and_scale_bounds() -> () {
+    let context = testing::expect_ok(Context::new(4096, Rounding::HalfEven), "sqrt boundary");
+    for scale in[-4096, -4095, 4095, 4096] {
+        let coefficient = if scale % 2 == 0 {
+            BigInt::one()
+        } else {
+            BigInt::from_u64(10)
+        };
+        let value = testing::expect_ok(Decimal::new(coefficient, scale), "sqrt boundary");
+        let result = testing::expect_ok(context.sqrt_status(value), "sqrt boundary");
+        testing::assert_eq(
+            testing::expect_ok(result.value.mul(result.value), "sqrt boundary"),
+            value,
+        );
+        testing::assert(!result.inexact && !result.rounded);
+    }
+    let irrational = testing::expect_ok(context.sqrt_status(Decimal::from_u64(2)), "sqrt boundary");
+    testing::assert_eq(irrational.value.precision(), 4096);
+    testing::assert(irrational.inexact && irrational.rounded);
+    testing::assert_eq(
+        testing::expect_err(
+            context.sqrt(
+                testing::expect_ok(Decimal::new(BigInt::from_u64(2), 4096), "sqrt boundary"),
+            ),
+            "sqrt boundary",
+        ),
+        Error::LimitExceeded("scale"),
+    );
+    let huge = testing::expect_ok(
+        Decimal::new(testing::expect_ok(BigInt::parse("9".repeat(4096)), "sqrt boundary"), -4096),
+        "sqrt boundary",
+    );
+    let carry = testing::expect_ok(
+        testing::expect_ok(Context::new(1, Rounding::HalfEven), "sqrt boundary").sqrt_status(huge),
+        "sqrt boundary",
+    );
+    testing::assert_eq(
+        carry.value,
+        testing::expect_ok(Decimal::new(BigInt::one(), -4096), "sqrt boundary"),
+    );
+    testing::assert(carry.inexact && carry.rounded);
+}

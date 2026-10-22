@@ -73,10 +73,31 @@ Neither operation uses a context or rounds fractional digits of the remainder.
 
 `Context::new(precision, rounding)` applies a significant-digit precision;
 `Context::standard()` uses 28 digits and half-even rounding. Context provides
-`round`, `add`, `sub`, `mul`, `div`, and `quantize`. Addition/subtraction and
+`round`, `add`, `sub`, `mul`, `div`, `sqrt`, and `quantize`. Addition/subtraction and
 multiplication compute their full bounded intermediate before rounding, so
 cancellation and carry do not cause double rounding. Division calculates the
 decimal exponent and rounds one exact quotient/remainder pair.
+
+Context `sqrt(value)` returns the nonnegative square root rounded once to the
+context precision, honoring all seven rounding modes. `sqrt_status` reports
+`inexact` exactly when the result's square differs from the input; `rounded`
+is also true when precision discards only zeros from the preferred root
+representation. Negative inputs return `NegativeSquareRoot`. Exact roots and
+zeros prefer scale `ceil(input.scale / 2)`: `sqrt(4.000) = 2.00`,
+`sqrt(0.00) = 0.0`, and `sqrt(0e3) = 0e1`. Precision can shorten an exact
+root's trailing zeros; irrational roots retain the requested precision.
+
+Square root scales the integer radicand as an exact fraction, takes its floor
+integer square root, and compares four times the numerator with the squared
+midpoint times the denominator. This distinguishes exact ties and their two
+sides without floating point or guard-digit double rounding. Intermediates
+have at most 8193 decimal digits, within bigint's standard bit budget.
+Results obey the existing coefficient and scale limits: redundant zeros may
+be removed above scale 4096, but required nonzero positions return
+`LimitExceeded("scale")`, without silently reducing precision. At precision
+4096, `sqrt(1e-4096)` succeeds exactly while `sqrt(2e-4096)` exceeds the scale
+limit. Unlike [Python decimal's square root](https://docs.python.org/3/library/decimal.html#decimal.Decimal.sqrt),
+which uses half-even, this API applies the selected context rounding mode.
 
 Context `quantize(value, scale)` fixes the scale and then checks precision.
 For precision 2, rounding `9.95` can produce `10`, while quantizing it to scale
@@ -88,7 +109,7 @@ Seven rounding modes are available: `HalfEven`, `HalfUp`, `HalfDown`, `Up`
 modes differ only on an exact midpoint. Directional modes account for the
 sign even when the truncated quotient is zero.
 
-`round_status`, `add_status`, `sub_status`, `mul_status`, `div_status`, `quantize_status`,
+`round_status`, `add_status`, `sub_status`, `mul_status`, `div_status`, `sqrt_status`, `quantize_status`,
 and `rescale_status` return `Outcome { value, rounded, inexact }`.
 `rounded` records discarded coefficient positions, including zeros;
 `inexact` records a change in numeric value. Division also reports rounding
@@ -144,7 +165,7 @@ preserve representation, except that a negative zero sign is never stored.
   of either 2 or 5 before returning a resource error.
 - Fixed formatting allocates at most 8193 ASCII bytes including the sign;
   no locale, grouping, binary-float conversion, NaN, infinity, negative zero,
-  subnormal/trap model, square root, or transcendental functions are provided.
+  subnormal/trap model or transcendental functions are provided.
   Inputs such as `-0.00` become a positive zero with scale 2.
 
 All invalid input, division-by-zero, inexact exact-conversion, precision,
@@ -177,7 +198,7 @@ Run from this library repository:
 
 ## Development and examples
 
-Requires the [current GoML toolchain](https://github.com/gomlang/workflows/blob/main/ci/toolchain.json) with unversioned registry support. The `examples/basic/` example shares the root manifest; test-only helpers are declared in `[dev-dependencies]`. From the library root, run:
+Requires the [current GoML toolchain](https://github.com/gomlang/workflows/blob/main/ci/toolchain.json) with unversioned registry support. Error messages use derived `ToString` templates, preserving their existing text. The `examples/basic/` example shares the root manifest; test-only helpers are declared in `[dev-dependencies]`. From the library root, run:
 
 ```sh
 goml run --example basic
@@ -186,3 +207,5 @@ goml test
 ```
 
 `goml test` builds the example and runs its tests. `(cd ../workflows && just ecosystem-test decimal)` runs the library-specific smoke and compatibility checks.
+
+`goml test` builds the example and runs its tests. The ecosystem verifier checks an independent consumer against an isolated registry snapshot and runs the library-specific smoke and compatibility checks.
