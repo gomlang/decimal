@@ -2,6 +2,7 @@ package tests;
 
 use ecosystem::decimal::{Decimal, Context, Rounding, Error};
 use ecosystem::bigint::{BigInt};
+use std::cmp::{Ord};
 use std::testing;
 
 fn d(text: string) -> Decimal {
@@ -265,7 +266,7 @@ fn equality_hash_order_and_normalization_ignore_redundant_scale() -> () {
         testing::assert(value.normalize().same_representation(d("1e2")));
     }
     testing::assert(d("-0.00").hash() == Decimal::zero().hash());
-    testing::assert(d("-100").cmp(d("-99.999")) == Ordering::Less);
+    testing::assert(Ord::cmp(d("-100"), d("-99.999")) == Ordering::Less);
     testing::assert(d(".00001").cmp(d("0")) == Ordering::Greater);
     testing::assert(d("1.0100").cmp(d("1.01001")) == Ordering::Less);
     testing::assert(!d("1.0").same_quantum(d("1.00")));
